@@ -4,16 +4,16 @@ import { cva } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-200 backdrop-blur-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-400 disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-blue-600 text-white shadow hover:bg-blue-600/90",
-        destructive: "bg-red-600 text-white shadow-sm hover:bg-red-600/90",
-        outline: "border border-gray-200 bg-white shadow-sm hover:bg-gray-50 hover:text-gray-900",
-        secondary: "bg-gray-100 text-gray-900 shadow-sm hover:bg-gray-100/80",
-        ghost: "hover:bg-gray-100 hover:text-gray-900",
-        link: "text-blue-600 underline-offset-4 hover:underline",
+        default: "bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)] hover:bg-blue-600/30 hover:border-blue-400/50 hover:text-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.2)]",
+        destructive: "bg-red-600/20 text-red-400 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-600/30 hover:border-red-400/50 hover:text-red-300 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]",
+        outline: "border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:border-white/20 hover:text-white",
+        secondary: "bg-slate-900/60 text-slate-300 border border-slate-800/60 hover:bg-slate-800/70 hover:border-slate-700/80 hover:text-slate-200",
+        ghost: "text-slate-400 hover:bg-white/5 hover:text-slate-200",
+        link: "text-blue-400 underline-offset-4 hover:underline hover:text-blue-300",
       },
       size: {
         default: "h-9 px-4 py-2",

@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import formidable from "formidable";
 import fs from "fs";
+import { rateLimit } from "express-rate-limit";
 import {
   AzureKeyCredential,
   DocumentAnalysisClient,
@@ -17,13 +18,49 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Enable if deploying behind a reverse proxy (Heroku, Render, AWS ALB, etc.)
+app.set("trust proxy", 1);
+
 // ----------------------------------
-// Gemini Client
+// Rate Limiter Configuration
+// ----------------------------------
+
+const matchLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15-minute tracking window
+  max: 10, // Limit each IP address to 10 resume reviews per window
+  message: {
+    error: "Too many resume analysis requests. Please try again in 15 minutes.",
+  },
+  standardHeaders: true, // Return standard RateLimit headers
+  legacyHeaders: false, // Disable older X-RateLimit headers
+});
+
+// ----------------------------------
+// Gemini Client & Strict Schema Definition
 // ----------------------------------
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
+
+// Using GoogleGenAI JSON schema format to enforce strict structural output
+const atsSchema = {
+  type: "OBJECT",
+  properties: {
+    match_score: { type: "NUMBER" },
+    summary: { type: "STRING" },
+    missing_criteria: { type: "ARRAY", items: { type: "STRING" } },
+    strengths: { type: "ARRAY", items: { type: "STRING" } },
+    suggested_resume_improvements: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: [
+    "match_score",
+    "summary",
+    "missing_criteria",
+    "strengths",
+    "suggested_resume_improvements",
+  ],
+};
 
 // ----------------------------------
 // Vector Similarity
@@ -70,7 +107,7 @@ const em = async (text) => {
 };
 
 // ----------------------------------
-// Gemini Analysis
+// Gemini Analysis (Structured JSON Outputs)
 // ----------------------------------
 
 async function gpt(prompt) {
@@ -79,15 +116,12 @@ async function gpt(prompt) {
     contents: prompt,
     config: {
       responseMimeType: "application/json",
+      responseSchema: atsSchema, // Guarantees compliant JSON output natively
       temperature: 0.2,
     },
   });
 
-  return (
-    response?.text ||
-    response?.candidates?.[0]?.content?.parts?.[0]?.text ||
-    ""
-  );
+  return response?.text || "";
 }
 
 // ----------------------------------
@@ -117,20 +151,14 @@ async function extractTextFromFile(filePath) {
 }
 
 // ----------------------------------
-// Utility
+// Utility Functions
 // ----------------------------------
-
-function stripCodeFence(text) {
-  return text
-    .replace(/```json/g, "")
-    .replace(/```/g, "")
-    .trim();
-}
 
 function cleanupFile(filePath) {
   try {
     if (filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+      console.log(`Cleaned up temp file: ${filePath}`);
     }
   } catch (err) {
     console.error("Cleanup error:", err);
@@ -138,28 +166,24 @@ function cleanupFile(filePath) {
 }
 
 // ----------------------------------
-// ATS Match Endpoint
+// ATS Match Endpoint (Optimized & Secure)
 // ----------------------------------
 
-app.post("/api/match", async (req, res) => {
+app.post("/api/match", matchLimiter, async (req, res) => {
   const form = formidable({});
+  let uploadedFilePath = null;
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error("Form Parse Error:", err);
-
-      return res.status(400).json({
-        error: "Failed to process form data.",
+  try {
+    // 1. Promisified Form Parsing (Avoids mixed callback anti-patterns)
+    const [fields, files] = await new Promise((resolve, reject) => {
+      form.parse(req, (err, fields, files) => {
+        if (err) reject(err);
+        else resolve([fields, files]);
       });
-    }
+    });
 
-    const rawFile = Array.isArray(files.file)
-      ? files.file[0]
-      : files.file;
-
-    const rawJd = Array.isArray(fields.jobDescription)
-      ? fields.jobDescription[0]
-      : fields.jobDescription;
+    const rawFile = Array.isArray(files.file) ? files.file[0] : files.file;
+    const rawJd = Array.isArray(fields.jobDescription) ? fields.jobDescription[0] : fields.jobDescription;
 
     if (!rawFile || !rawJd) {
       return res.status(400).json({
@@ -167,66 +191,51 @@ app.post("/api/match", async (req, res) => {
       });
     }
 
-    try {
-      console.log("Extracting resume text...");
+    // Capture the path as early as possible for the fallback cleanup
+    uploadedFilePath = rawFile.filepath;
 
-      const resumeText = await extractTextFromFile(
-        rawFile.filepath
-      );
+    // 2. File Type Validation (Basic Guardrail)
+    const allowedMimeTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+      "application/msword", // .doc
+      "text/plain"
+    ];
 
-      console.log(
-        "Resume Characters:",
-        resumeText.length
-      );
+    if (!allowedMimeTypes.includes(rawFile.mimetype)) {
+      return res.status(400).json({
+        error: "Unsupported file type. Please upload a PDF, DOCX, or TXT file.",
+      });
+    }
 
-      console.log(
-        "JD Characters:",
-        rawJd.length
-      );
+    console.log("Extracting resume text...");
+    const resumeText = await extractTextFromFile(uploadedFilePath);
 
-      // Optional truncation for very large files
-      const resumeForAnalysis = resumeText.slice(0, 12000);
-      const jdForAnalysis = rawJd.slice(0, 8000);
+    console.log("Resume Characters:", resumeText.length);
+    console.log("JD Characters:", rawJd.length);
 
-      console.log("Generating embeddings...");
+    // Truncation limits for stability
+    const resumeForAnalysis = resumeText.slice(0, 12000);
+    const jdForAnalysis = rawJd.slice(0, 8000);
 
-      const resumeEmbedding = await em(resumeForAnalysis);
-      const jdEmbedding = await em(jdForAnalysis);
+    // 3. Parallelized Async Flow (Saves ~50% processing time here)
+    console.log("Generating embeddings in parallel...");
+    const [resumeEmbedding, jdEmbedding] = await Promise.all([
+      em(resumeForAnalysis),
+      em(jdForAnalysis),
+    ]);
 
-      const similarity = cosineSimilarity(
-        resumeEmbedding,
-        jdEmbedding
-      );
+    const similarity = cosineSimilarity(resumeEmbedding, jdEmbedding);
+    const similarityScore = Math.max(
+      0,
+      Math.min(100, similarity * 100)
+    ).toFixed(2);
 
-      const similarityScore = Math.max(
-        0,
-        Math.min(100, similarity * 100)
-      ).toFixed(2);
+    console.log("Similarity Score:", similarityScore);
 
-      console.log(
-        "Similarity Score:",
-        similarityScore
-      );
-
-      const prompt = `
+    const prompt = `
 You are an expert ATS and recruitment analyst.
-
 Analyze the resume against the job description.
-
-Generate ONLY valid JSON.
-
-Do not include markdown.
-Do not include explanations.
-Do not wrap the JSON in code blocks.
-
-Schema:
-{
-  "match_score": number,
-  "summary": string,
-  "missing_criteria": string[],
-  "strengths": string[],
-  "suggested_resume_improvements": string[]
-}
 
 Resume:
 ${resumeForAnalysis}
@@ -238,53 +247,28 @@ Embedding Similarity Score:
 ${similarityScore}
 `;
 
-      console.log("Calling Gemini...");
+    console.log("Calling Gemini...");
+    const rawResponse = await gpt(prompt);
 
-      const rawResponse = await gpt(prompt);
-
-      console.log("Gemini Response:");
-      console.log(rawResponse);
-
-      if (!rawResponse) {
-        throw new Error(
-          "Gemini returned an empty response."
-        );
-      }
-
-      const cleanedJson = stripCodeFence(rawResponse);
-
-      let parsed;
-
-      try {
-        parsed = JSON.parse(cleanedJson);
-      } catch (jsonError) {
-        console.error(
-          "Invalid JSON Returned:",
-          cleanedJson
-        );
-
-        return res.status(500).json({
-          error: "Gemini returned invalid JSON.",
-          rawResponse: cleanedJson,
-        });
-      }
-
-      cleanupFile(rawFile.filepath);
-
-      return res.status(200).json(parsed);
-    } catch (error) {
-      console.error(
-        "Error Inside Match Handler:",
-        error
-      );
-
-      cleanupFile(rawFile?.filepath);
-
-      return res.status(500).json({
-        error: error.message || "Internal Server Error",
-      });
+    if (!rawResponse) {
+      throw new Error("Gemini returned an empty response.");
     }
-  });
+
+    // 4. Clean JSON parsing directly from structured output
+    const parsedData = JSON.parse(rawResponse);
+    return res.status(200).json(parsedData);
+
+  } catch (error) {
+    console.error("Error Inside Match Handler:", error);
+    return res.status(500).json({
+      error: error.message || "Internal Server Error",
+    });
+  } finally {
+    // 5. Guaranteed Cleanup Block (Runs regardless of success, validation errors, or crashes)
+    if (uploadedFilePath) {
+      cleanupFile(uploadedFilePath);
+    }
+  }
 });
 
 // ----------------------------------
@@ -303,7 +287,5 @@ app.get("/", (req, res) => {
 // ----------------------------------
 
 app.listen(PORT, () => {
-  console.log(
-    `🚀 Server running on port ${PORT}`
-  );
-});
+  console.log(`🚀 Server running on port ${PORT}`);
+})

@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import {useState} from 'react';
-import { DataProvider, useDataContext } from './context/DataContext';
+import { DataProvider, useDataContext } from './context/dataContext';
 import { ResumeJdMatcher } from './components/ResumeJdMatcher';
 import { MatchResultsComponent } from './components/MatchResultsComponent';
 import { MatchUnavailableComponent } from './components/MatchUnavailableComponent';
