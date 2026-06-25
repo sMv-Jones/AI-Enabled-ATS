@@ -73,14 +73,14 @@ ai-resume-matcher/
 ### Frontend (`frontEnd/.env`)
 
 ```env
-VITE_API_URL=http://localhost:5000
+VITE_API_URL=your_backend_url
 ```
 
 ### Backend (`backEnd/.env`)
 
 ```env
 PORT=5000
-FRONTEND_URL=your_url
+FRONTEND_URL=your_frontend_url
 
 FORM_RECOGNIZER_ENDPOINT=your_azure_endpoint
 FORM_RECOGNIZER_API_KEY=your_azure_api_key
@@ -95,8 +95,8 @@ GEMINI_API_KEY=your_gemini_api_key
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/ai-resume-matcher.git
-cd ai-resume-matcher
+git clone https://github.com/sMv-Jones/AI-Enabled-ATS.git
+cd AI-Enabled-ATS
 ```
 
 ### 2. Backend Setup
