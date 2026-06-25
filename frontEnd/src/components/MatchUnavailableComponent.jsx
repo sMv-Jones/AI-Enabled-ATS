@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion'
-import { Button } from "./ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { Button } from "./common/button"
+import { Card, CardContent, CardHeader, CardTitle } from "./common/card"
 import { AlertCircle, ChevronLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-export function MatchUnavailableComponent() {
+export default function MatchUnavailableComponent() {
   return (
     <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 flex-grow flex items-center justify-center">
       <motion.div

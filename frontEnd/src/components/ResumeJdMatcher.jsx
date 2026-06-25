@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Button } from "./ui/button"
-import { Input } from "./ui/input"
-import { Textarea } from "./ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { Button } from "./common/button"
+import { Input } from "./common/input"
+import { Textarea } from "./common/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "./common/card"
 import { Upload, FileText, Zap, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from "../hooks/use-toast"
 
-export function ResumeJdMatcher({ setData }) {
+export default function ResumeJdMatcher({ setData }) {
   const { toast } = useToast()
   const navigate = useNavigate()
   const [file, setFile] = useState(null)

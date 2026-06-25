@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "../components/common/card"
 
 export function Contact() {
   return (

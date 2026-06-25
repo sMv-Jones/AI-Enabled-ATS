@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import { Badge } from "./ui/badge"
-import { Button } from "./ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "./common/card"
+import { Badge } from "./common/badge"
+import { Button } from "./common/button"
 import { Award, FileText, CheckCircle2, AlertCircle, Sparkles, ChevronLeft, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-export function MatchResultsComponent({ data }) {
+export default function MatchResultsComponent({ data }) {
   const navigate = useNavigate()
   
   const matchData = {

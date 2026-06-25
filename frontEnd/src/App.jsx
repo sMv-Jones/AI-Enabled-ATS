@@ -1,20 +1,18 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useState } from 'react';
 import { DataProvider, useDataContext } from './context/dataContext';
-import { AppLayout } from './components/Layout';
-import { ResumeJdMatcher } from './components/ResumeJdMatcher';
-import { MatchResultsComponent } from './components/MatchResultsComponent';
-import { MatchUnavailableComponent } from './components/MatchUnavailableComponent';
-import { About } from './components/About';       // 1. Import About
-import { Contact } from './components/Contact';   // 2. Import Contact
-import { Toaster } from './components/ui/toaster';
+
+import { About } from './pages/About';       
+import { Contact } from './pages/Contact';   
+import { Toaster } from './components/common/index';
+import { Layout, ResumeJdMatcher,  MatchResultsComponent, MatchUnavailableComponent } from './components/index';
 
 function AppRoutes() {
   const { data, setData } = useDataContext();
 
   return (
     <Routes>
-      <Route element={<AppLayout />}>
+      <Route element={<Layout />}>
         <Route path="/" element={<ResumeJdMatcher setData={setData} />} />
         <Route 
           path="/match" 
