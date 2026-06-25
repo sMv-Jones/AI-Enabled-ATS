@@ -1,9 +1,12 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import {useState} from 'react';
+import { useState } from 'react';
 import { DataProvider, useDataContext } from './context/dataContext';
+import { AppLayout } from './components/Layout';
 import { ResumeJdMatcher } from './components/ResumeJdMatcher';
 import { MatchResultsComponent } from './components/MatchResultsComponent';
 import { MatchUnavailableComponent } from './components/MatchUnavailableComponent';
+import { About } from './components/About';       // 1. Import About
+import { Contact } from './components/Contact';   // 2. Import Contact
 import { Toaster } from './components/ui/toaster';
 
 function AppRoutes() {
@@ -11,17 +14,21 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<ResumeJdMatcher setData={setData} />} />
-      <Route 
-        path="/match" 
-        element={data ? <MatchResultsComponent data={data} /> : <MatchUnavailableComponent />} 
-      />
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<ResumeJdMatcher setData={setData} />} />
+        <Route 
+          path="/match" 
+          element={data ? <MatchResultsComponent data={data} /> : <MatchUnavailableComponent />} 
+        />
+        <Route path="/about" element={<About />} />      {/* 3. Mount About */}
+        <Route path="/contact" element={<Contact />} />  {/* 4. Mount Contact */}
+      </Route>
     </Routes>
   );
 }
 
 export default function App() {
-   const [data, setData] = useState(null);
+  const [data, setData] = useState(null);
   return (
     <DataProvider value={{ data, setData }}>
       <Router>
